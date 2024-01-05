@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { RequestValidationSchema } from "../types";
+import { RequestValidationSchema, ValidatedRequestData } from "../types";
 import Joi from "joi";
 import HttpError from "../customs/HttpError";
 import HttpStatusCode from "../constants/http-status-codes";
@@ -19,22 +19,22 @@ export default abstract class Controller {
         if (!(error instanceof HttpError)) {
             error = HttpError.fromError(error);
         }
-        const { message, statusCode } = error as HttpError;
-        this.res.status(statusCode).json({ error: message });
+        const { message, status } = error as HttpError;
+        this.res.status(status).json({ error: message });
     }
 
     async validateRequest({
         bodySchema = Joi.any(),
         paramsSchema = Joi.any(),
         querySchema = Joi.any(),
-    }: RequestValidationSchema = {}) {
+    }: RequestValidationSchema = {}): Promise<ValidatedRequestData> {
         try {
             const schema = Joi.object({ body: bodySchema, params: paramsSchema, query: querySchema });
             const { body, params, query } = this.req;
             return await schema.validateAsync({ body, params, query });
         } catch (error: any) {
             if (error instanceof Joi.ValidationError) {
-                throw new HttpError({ message: error.details[0].message, statusCode: HttpStatusCode.BAD_REQUEST });
+                throw new HttpError({ message: error.details[0].message, status: HttpStatusCode.BAD_REQUEST });
             }
             throw error;
         }

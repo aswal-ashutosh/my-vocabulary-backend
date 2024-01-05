@@ -1,14 +1,14 @@
 import HttpStatusCode from "../constants/http-status-codes";
 
 export default class HttpError extends Error {
-    public readonly statusCode: HttpStatusCode;
+    public readonly status: HttpStatusCode;
 
-    constructor({ message = "", statusCode }: { message?: string; statusCode: HttpStatusCode }) {
+    constructor({ message, status }: { message?: string; status: HttpStatusCode }) {
         super(message);
-        this.statusCode = statusCode;
+        this.status = status;
     }
 
-    public static fromError(error: Error, statusCode: HttpStatusCode = HttpStatusCode.INTERNAL_SERVER_ERROR) {
-        return new HttpError({ message: error.message, statusCode });
+    public static fromError(error: Error, status: HttpStatusCode = HttpStatusCode.INTERNAL_SERVER_ERROR) {
+        return new HttpError({ message: error.message, status });
     }
 }
