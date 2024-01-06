@@ -10,7 +10,7 @@ import HttpError from "../customs/HttpError";
 import { OneTimePassword } from "../models/mongo-models";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import Config from "../config";
+import Config from "../constants/config";
 
 export default class AuthController extends Controller {
     constructor(req: Request, res: Response) {

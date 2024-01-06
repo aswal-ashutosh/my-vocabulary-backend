@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import Config from "../config";
+import Config from "../constants/config";
 
 export default abstract class NodemailerService {
     private static readonly _transporter = nodemailer.createTransport({
