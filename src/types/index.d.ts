@@ -16,3 +16,13 @@ export interface APIResponse {
     status: HttpStatusCode;
     body?: any;
 }
+
+export interface HashedPassword {
+    salt: string;
+    hash: string;
+}
+
+export interface AuthorizationToken {
+    accessToken: string;
+    refreshToken: string;
+}
