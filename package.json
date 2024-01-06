@@ -4,7 +4,7 @@
     "description": "",
     "main": "./dist/server.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "npm run build && firebase emulators:start --only functions",
         "start": "nodemon ./src/server.ts",
         "deploy": "firebase deploy --only functions",
         "lint": "eslint",
