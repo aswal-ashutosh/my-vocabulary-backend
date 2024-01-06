@@ -20,7 +20,11 @@ export default abstract class Controller {
             error = HttpError.fromError(error);
         }
         const { message, status } = error as HttpError;
-        this.res.status(status).json({ error: message });
+        if (message) {
+            this.res.status(status).json({ error: message });
+        } else {
+            this.res.sendStatus(status);
+        }
     }
 
     async validateRequest({
