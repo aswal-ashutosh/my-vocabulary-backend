@@ -7,7 +7,7 @@ import MongoDBService from "../services/MongoDBService";
 import Collections from "../constants/mongodb-collections";
 import NodeMailerService from "../services/NodemailerService";
 import HttpError from "../customs/HttpError";
-import { OneTimePassword } from "../models/mongo-models";
+import { OneTimePassword, User } from "../models/mongo-models";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import Config from "../constants/config";
@@ -44,6 +44,40 @@ export default class AuthController extends Controller {
             .updateOne({ email }, { $set: { email, otp, createdAt: new Date() } }, { upsert: true });
         await NodeMailerService.sendOTPVerificationMail(email, otp);
         return { status: HttpStatusCode.OK, body: { message: "OTP has been sent to provided email address." } };
+    }
+
+    public async signIn() {
+        try {
+            const bodySchema = Joi.object({
+                email: Joi.string().trim().email().required(),
+                password: Joi.string().min(8).max(30).required().disallow(" "),
+            }).custom((value) => {
+                if (!AuthController.isStrongPassword(value.password)) {
+                    throw new Error("Password isn't strong.");
+                }
+                return value;
+            });
+            const {
+                body: { email, password },
+            } = await this.validateRequest({ bodySchema });
+            const { status, body } = await AuthController.signIn(email, password);
+            this.sendResponse(status, body);
+        } catch (error: any) {
+            this.handleError(error);
+        }
+    }
+
+    public static async signIn(email: string, password: string): Promise<APIResponse> {
+        const db = await MongoDBService.getDB();
+        const user = await db.collection<User>(Collections.USERS).findOne({ email });
+        if (!user) {
+            throw new HttpError({ status: HttpStatusCode.NOT_FOUND, message: "The requested user doesn't exist" });
+        }
+        if (!AuthController.verifyPassword(password, user.password)) {
+            throw new HttpError({ status: HttpStatusCode.UNAUTHORIZED, message: "Invalid credentials." });
+        }
+        const authorizationToken = AuthController.generateAuthorizationToken(email);
+        return { status: HttpStatusCode.OK, body: authorizationToken };
     }
 
     public async createUser() {
@@ -119,5 +153,15 @@ export default class AuthController extends Controller {
         const accessToken = jwt.sign({ email }, Config.JWT_ACCESS_TOKEN_KEY, { expiresIn: "1d" });
         const refreshToken = jwt.sign({ email }, Config.JWT_REFRESH_TOKEN_KEY, { expiresIn: "7d" });
         return { accessToken, refreshToken };
+    }
+
+    private static verifyPassword(enteredPassword: string, password: HashedPassword): boolean {
+        const iterations = 100000;
+        const keyLength = 64;
+        const digest = "sha256";
+        const enteredPasswordHash = crypto
+            .pbkdf2Sync(enteredPassword, password.salt, iterations, keyLength, digest)
+            .toString("hex");
+        return enteredPasswordHash === password.hash;
     }
 }
