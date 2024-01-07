@@ -14,3 +14,14 @@ export interface User {
     password: HashedPassword;
     createdAt: Date;
 }
+
+export interface Word {
+    _id: ObjectId;
+    word: string;
+    definitions: string[];
+    sentences: string[];
+    similarWords: string[];
+    oppositeWords: string[];
+    createdBy: string;
+    createdAt: Date;
+}
