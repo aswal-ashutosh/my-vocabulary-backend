@@ -1,5 +1,13 @@
 import Joi from "joi";
 
+declare global {
+    namespace Express {
+        interface Request {
+            userInfo?: { email: string };
+        }
+    }
+}
+
 export interface RequestValidationSchema {
     bodySchema?: Joi.AnySchema;
     paramsSchema?: Joi.AnySchema;
