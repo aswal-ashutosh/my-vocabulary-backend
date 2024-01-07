@@ -5,6 +5,8 @@ import routes from "./routes/routes";
 
 const server = express();
 
+server.use(express.json());
+
 server.get("/", (req, res) => {
     res.status(200).json({ message: "Hello from firebase functions." });
 });
