@@ -43,4 +43,8 @@ export default abstract class Controller {
             throw error;
         }
     }
+
+    userInfo() {
+        return this.req.userInfo;
+    }
 }
