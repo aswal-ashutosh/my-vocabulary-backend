@@ -34,3 +34,7 @@ export interface AuthorizationToken {
     accessToken: string;
     refreshToken: string;
 }
+
+export interface JWTPayload {
+    email: string
+}
