@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import HttpStatusCode from "../constants/http-status-codes";
 import jwt from "jsonwebtoken";
-import Config from "../constants/config";
+import config from "../constants/config";
 import { JWTPayload } from "../types";
 
 export const authorize = async (req: Request, res: Response, next: NextFunction) => {
@@ -11,7 +11,7 @@ export const authorize = async (req: Request, res: Response, next: NextFunction)
         if (!token) {
             return res.status(HttpStatusCode.UNAUTHORIZED).json({ error: "Authorization token missing/malformed." });
         }
-        const { email } = jwt.verify(token, Config.JWT_ACCESS_TOKEN_KEY) as JWTPayload;
+        const { email } = jwt.verify(token, config.JWT_ACCESS_TOKEN_KEY) as JWTPayload;
         req.userInfo = { email };
         next();
     } catch (error: any) {

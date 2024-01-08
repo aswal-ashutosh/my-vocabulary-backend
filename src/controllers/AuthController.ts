@@ -4,13 +4,13 @@ import Joi from "joi";
 import { APIResponse, AuthorizationToken, HashedPassword } from "../types";
 import HttpStatusCode from "../constants/http-status-codes";
 import MongoDBService from "../services/MongoDBService";
-import Collections from "../constants/mongodb-collections";
+import collections from "../constants/mongodb-collections";
 import NodeMailerService from "../services/NodemailerService";
 import HttpError from "../customs/HttpError";
 import { OneTimePassword, User } from "../models/mongo-models";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import Config from "../constants/config";
+import config from "../constants/config";
 
 export default class AuthController extends Controller {
     constructor(req: Request, res: Response) {
@@ -34,13 +34,13 @@ export default class AuthController extends Controller {
 
     private static async signUp(email: string): Promise<APIResponse> {
         const db = await MongoDBService.getDB();
-        const userDoc = await db.collection(Collections.USERS).findOne({ email });
+        const userDoc = await db.collection(collections.USERS).findOne({ email });
         if (userDoc) {
             throw new HttpError({ status: HttpStatusCode.CONFLICT, message: "Email already in use." });
         }
         const otp = AuthController.generateOTP(100000, 999999);
         await db
-            .collection(Collections.ONE_TIME_PASSWORDS)
+            .collection(collections.ONE_TIME_PASSWORDS)
             .updateOne({ email }, { $set: { email, otp, createdAt: new Date() } }, { upsert: true });
         await NodeMailerService.sendOTPVerificationMail(email, otp);
         return { status: HttpStatusCode.OK, body: { message: "OTP has been sent to provided email address." } };
@@ -69,7 +69,7 @@ export default class AuthController extends Controller {
 
     public static async signIn(email: string, password: string): Promise<APIResponse> {
         const db = await MongoDBService.getDB();
-        const user = await db.collection<User>(Collections.USERS).findOne({ email });
+        const user = await db.collection<User>(collections.USERS).findOne({ email });
         if (!user) {
             throw new HttpError({ status: HttpStatusCode.NOT_FOUND, message: "The requested user doesn't exist" });
         }
@@ -104,20 +104,20 @@ export default class AuthController extends Controller {
 
     private static async createUser(email: string, password: string, otp: number): Promise<APIResponse> {
         const db = await MongoDBService.getDB();
-        const userDoc = await db.collection(Collections.USERS).findOne({ email });
+        const userDoc = await db.collection(collections.USERS).findOne({ email });
         if (userDoc) {
             throw new HttpError({ status: HttpStatusCode.CONFLICT });
         }
         const expiryTime = new Date(Date.now() - 5 * 60 * 1000); //Current Time - 5 Minutes
         const { deletedCount } = await db
-            .collection<OneTimePassword>(Collections.ONE_TIME_PASSWORDS)
+            .collection<OneTimePassword>(collections.ONE_TIME_PASSWORDS)
             .deleteOne({ email, otp, createdAt: { $gte: expiryTime } });
         if (deletedCount === 0) {
             throw new HttpError({ status: HttpStatusCode.UNAUTHORIZED, message: "Invalid OTP" });
         }
         const hashedPassword = AuthController.generateHashedPassword(password);
         const authorizationToken = AuthController.generateAuthorizationToken(email);
-        await db.collection(Collections.USERS).insertOne({ email, password: hashedPassword, createdAt: new Date() });
+        await db.collection(collections.USERS).insertOne({ email, password: hashedPassword, createdAt: new Date() });
         return { status: HttpStatusCode.CREATED, body: authorizationToken };
     }
 
@@ -150,8 +150,8 @@ export default class AuthController extends Controller {
     }
 
     private static generateAuthorizationToken(email: string): AuthorizationToken {
-        const accessToken = jwt.sign({ email }, Config.JWT_ACCESS_TOKEN_KEY, { expiresIn: "1d" });
-        const refreshToken = jwt.sign({ email }, Config.JWT_REFRESH_TOKEN_KEY, { expiresIn: "7d" });
+        const accessToken = jwt.sign({ email }, config.JWT_ACCESS_TOKEN_KEY, { expiresIn: "1d" });
+        const refreshToken = jwt.sign({ email }, config.JWT_REFRESH_TOKEN_KEY, { expiresIn: "7d" });
         return { accessToken, refreshToken };
     }
 

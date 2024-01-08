@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 import { Word } from "../models/mongo-models";
 import { APIResponse } from "../types";
 import MongoDBService from "../services/MongoDBService";
-import Collections from "../constants/mongodb-collections";
+import collections from "../constants/mongodb-collections";
 import HttpStatusCode from "../constants/http-status-codes";
 
 export default class VocabularyController extends Controller {
@@ -34,7 +34,7 @@ export default class VocabularyController extends Controller {
     private static async addWord(word: Word, email: string): Promise<APIResponse> {
         const db = await MongoDBService.getDB();
         const { insertedId } = await db
-            .collection<Word>(Collections.WORDS)
+            .collection<Word>(collections.WORDS)
             .insertOne({ ...word, createdBy: email, createdAt: new Date() });
         word._id = insertedId;
         return { status: HttpStatusCode.CREATED, body: word };

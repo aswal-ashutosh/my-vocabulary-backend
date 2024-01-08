@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import Config from "../constants/config";
+import config from "../constants/config";
 
 export default abstract class NodemailerService {
     private static readonly _transporter = nodemailer.createTransport({
@@ -7,8 +7,8 @@ export default abstract class NodemailerService {
         port: 465,
         secure: true,
         auth: {
-            user: Config.NODEMAILER_USER,
-            pass: Config.NODEMAILER_PASSWORD,
+            user: config.NODEMAILER_USER,
+            pass: config.NODEMAILER_PASSWORD,
         },
     });
     static async sendOTPVerificationMail(to: string, otp: number) {
