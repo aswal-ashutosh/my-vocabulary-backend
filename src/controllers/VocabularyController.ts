@@ -6,6 +6,8 @@ import { APIResponse } from "../types";
 import MongoDBService from "../services/MongoDBService";
 import collections from "../constants/mongodb-collections";
 import HttpStatusCode from "../constants/http-status-codes";
+import { ObjectId } from "mongodb";
+import HttpError from "../customs/HttpError";
 
 export default class VocabularyController extends Controller {
     constructor(req: Request, res: Response) {
@@ -38,5 +40,43 @@ export default class VocabularyController extends Controller {
             .insertOne({ ...word, createdBy: email, createdAt: new Date() });
         word._id = insertedId;
         return { status: HttpStatusCode.CREATED, body: word };
+    }
+
+    public async updateWord() {
+        try {
+            const notEmptyStringSchema = Joi.string().not().empty();
+            const bodySchema = Joi.object({
+                word: notEmptyStringSchema,
+                definitions: Joi.array().items(notEmptyStringSchema).min(1),
+                sentences: Joi.array().items(notEmptyStringSchema).max(10),
+                similarWords: Joi.array().items(notEmptyStringSchema).max(10),
+                oppositeWords: Joi.array().items(notEmptyStringSchema).max(10),
+            }).min(1);
+            const paramsSchema = Joi.object({ _id: Joi.string().hex().length(24) });
+            const {
+                body: word,
+                params: { _id },
+            } = await this.validateRequest({ bodySchema, paramsSchema });
+            const email: string = this.userInfo()!.email;
+            const { status, body } = await VocabularyController.updateWord(new ObjectId(_id), word, email);
+            this.sendResponse(status, body);
+        } catch (error: any) {
+            this.handleError(error);
+        }
+    }
+
+    private static async updateWord(_id: ObjectId, word: Word, email: string): Promise<APIResponse> {
+        const db = await MongoDBService.getDB();
+        const wordDoc = await db
+            .collection<Word>(collections.WORDS)
+            .findOneAndUpdate(
+                { _id, createdBy: email },
+                { $set: word },
+                { projection: { createdBy: 0 }, returnDocument: "after" }
+            );
+        if (!wordDoc) {
+            return new HttpError({ status: HttpStatusCode.NOT_FOUND });
+        }
+        return { status: HttpStatusCode.OK, body: wordDoc };
     }
 }

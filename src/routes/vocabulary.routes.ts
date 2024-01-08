@@ -6,4 +6,6 @@ const router = Router();
 
 router.post("/", authorize, (req, res) => new VocabularyController(req, res).addWord());
 
+router.patch("/:_id", authorize, (req, res) => new VocabularyController(req, res).updateWord());
+
 export default router;
