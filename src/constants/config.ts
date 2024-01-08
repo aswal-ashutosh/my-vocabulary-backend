@@ -5,6 +5,7 @@ dotEnv.config();
 const env = process.env;
 
 export default {
+    PORT: env.PORT as string,
     MONGO_DB_URI: env.MONGO_DB_URI as string,
     MONGO_DB_NAME: env.MONGO_DB_NAME as string,
     NODEMAILER_USER: env.NODEMAILER_USER as string,
