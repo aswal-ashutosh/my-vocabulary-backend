@@ -9,7 +9,7 @@ export interface OneTimePassword {
 }
 
 export interface User {
-    _id_: ObjectId;
+    _id: ObjectId;
     email: string;
     password: HashedPassword;
     createdAt: Date;
