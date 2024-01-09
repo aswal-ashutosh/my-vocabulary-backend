@@ -8,4 +8,6 @@ router.post("/", authorize, (req, res) => new VocabularyController(req, res).add
 
 router.patch("/:_id", authorize, (req, res) => new VocabularyController(req, res).updateWord());
 
+router.get("/", authorize, (req, res) => new VocabularyController(req, res).getWords());
+
 export default router;

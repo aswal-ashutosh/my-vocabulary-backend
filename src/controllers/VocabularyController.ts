@@ -6,7 +6,7 @@ import { APIResponse } from "../types";
 import MongoDBService from "../services/MongoDBService";
 import collections from "../constants/mongodb-collections";
 import HttpStatusCode from "../constants/http-status-codes";
-import { ObjectId } from "mongodb";
+import { Db, ObjectId } from "mongodb";
 import HttpError from "../customs/HttpError";
 
 export default class VocabularyController extends Controller {
@@ -78,5 +78,35 @@ export default class VocabularyController extends Controller {
             return new HttpError({ status: HttpStatusCode.NOT_FOUND });
         }
         return { status: HttpStatusCode.OK, body: wordDoc };
+    }
+
+    public async getWords() {
+        try {
+            const querySchema = Joi.object({
+                page: Joi.number().min(1).required(),
+                pageSize: Joi.number().min(1).max(10).required(),
+            });
+            const {
+                query: { page, pageSize },
+            } = await this.validateRequest({ querySchema });
+            const email = this.userInfo()!.email;
+            const { status, body } = await VocabularyController.getWords(page, pageSize, email);
+            this.sendResponse(status, body);
+        } catch (error: any) {
+            this.handleError(error);
+        }
+    }
+
+    private static async getWords(page: number, pageSize: number, createdBy: string): Promise<APIResponse> {
+        const db = await MongoDBService.getDB();
+        const words: Word[] = await db
+            .collection<Word>(collections.WORDS)
+            .find({ createdBy })
+            .sort({ word: 1 })
+            .skip((page - 1) * pageSize)
+            .limit(pageSize)
+            .project<Word>({ createdBy: 0 })
+            .toArray();
+        return { status: HttpStatusCode.OK, body: words };
     }
 }
