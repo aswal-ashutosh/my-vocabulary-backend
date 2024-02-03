@@ -17,11 +17,18 @@ export default abstract class Controller {
 
     handleError(error: Error | HttpError) {
         if (!(error instanceof HttpError)) {
-            error = HttpError.fromError(error);
+            error = new HttpError({ message: error.message, status: HttpStatusCode.INTERNAL_SERVER_ERROR });
         }
-        const { message, status } = error as HttpError;
+        const { message, status, path } = error as HttpError;
+        let errorPayload: { message?: string; path?: (string | number)[] } = {};
         if (message) {
-            this.res.status(status).json({ error: message });
+            errorPayload.message = message;
+        }
+        if (path) {
+            errorPayload.path = path;
+        }
+        if (Object.keys(errorPayload).length) {
+            this.res.status(status).json(errorPayload);
         } else {
             this.res.sendStatus(status);
         }
@@ -38,7 +45,12 @@ export default abstract class Controller {
             return await schema.validateAsync({ body, params, query });
         } catch (error: any) {
             if (error instanceof Joi.ValidationError) {
-                throw new HttpError({ message: error.details[0].message, status: HttpStatusCode.BAD_REQUEST });
+                const [{ message, path }] = error.details;
+                throw new HttpError({
+                    message: message,
+                    status: HttpStatusCode.BAD_REQUEST,
+                    path: path.slice(1, path.length),
+                });
             }
             throw error;
         }

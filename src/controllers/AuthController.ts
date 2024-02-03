@@ -20,7 +20,11 @@ export default class AuthController extends Controller {
     public async signUp() {
         try {
             const bodySchema = Joi.object({
-                email: Joi.string().trim().email().required(),
+                email: Joi.string().trim().email().required().messages({
+                    "string.base": "Email must be a string.",
+                    "string.email": "Invalid email address.",
+                    "any.required": "Email is required.",
+                }),
             });
             const {
                 body: { email },
@@ -36,7 +40,7 @@ export default class AuthController extends Controller {
         const db = await MongoDBService.getDB();
         const userDoc = await db.collection(collections.USERS).findOne({ email });
         if (userDoc) {
-            throw new HttpError({ status: HttpStatusCode.CONFLICT, message: "Email already in use." });
+            throw new HttpError({ status: HttpStatusCode.CONFLICT, message: "Email already in use.", path: ["email"] });
         }
         const otp = AuthController.generateOTP(100000, 999999);
         await db
@@ -46,16 +50,70 @@ export default class AuthController extends Controller {
         return { status: HttpStatusCode.OK, body: { message: "OTP has been sent to provided email address." } };
     }
 
+    public async createUser() {
+        try {
+            const bodySchema = Joi.object({
+                email: Joi.string().trim().email().required().messages({
+                    "string.base": "Email must be a string.",
+                    "string.email": "Invalid email address.",
+                    "any.required": "Email is required.",
+                }),
+                otp: Joi.number().min(100000).max(999999).required().messages({
+                    "number.base": "OTP must be a number.",
+                    "number.min": "OTP must contain 6 digit.",
+                    "number.max": "OTP must contain 6 digit.",
+                    "any.required": "OTP is required.",
+                }),
+                password: Joi.string()
+                    .min(8)
+                    .max(30)
+                    .regex(/^[^\s]+$/)
+                    .required()
+                    .messages({
+                        "string.base": "Password must be a string.",
+                        "string.min": "Password must be at least {#limit} characters long.",
+                        "string.max": "Password can't exceed {#limit} characters.",
+                        "string.pattern.base": "Passwords must not contain any spaces.",
+                        "any.required": "Password is required.",
+                    }),
+            });
+            const {
+                body: { email, password, otp },
+            } = await this.validateRequest({ bodySchema });
+            const { status, body } = await AuthController.createUser(email, password, otp);
+            this.sendResponse(status, body);
+        } catch (error: any) {
+            this.handleError(error);
+        }
+    }
+
+    private static async createUser(email: string, password: string, otp: number): Promise<APIResponse> {
+        if (!AuthController.isStrongPassword(password)) {
+            throw new HttpError({ message: "Weak Password.", status: HttpStatusCode.BAD_REQUEST, path: ["password"] });
+        }
+        const db = await MongoDBService.getDB();
+        const userDoc = await db.collection(collections.USERS).findOne({ email });
+        if (userDoc) {
+            throw new HttpError({ status: HttpStatusCode.CONFLICT });
+        }
+        const expiryTime = new Date(Date.now() - 5 * 60 * 1000); //Current Time - 5 Minutes
+        const { deletedCount } = await db
+            .collection<OneTimePassword>(collections.ONE_TIME_PASSWORDS)
+            .deleteOne({ email, otp, createdAt: { $gte: expiryTime } });
+        if (deletedCount === 0) {
+            throw new HttpError({ status: HttpStatusCode.UNAUTHORIZED, message: "Invalid OTP", path: ["otp"] });
+        }
+        const hashedPassword = AuthController.generateHashedPassword(password);
+        const authorizationToken = AuthController.generateAuthorizationToken(email);
+        await db.collection(collections.USERS).insertOne({ email, password: hashedPassword, createdAt: new Date() });
+        return { status: HttpStatusCode.CREATED, body: authorizationToken };
+    }
+
     public async signIn() {
         try {
             const bodySchema = Joi.object({
                 email: Joi.string().trim().email().required(),
-                password: Joi.string().min(8).max(30).required().disallow(" "),
-            }).custom((value) => {
-                if (!AuthController.isStrongPassword(value.password)) {
-                    throw new Error("Password isn't strong.");
-                }
-                return value;
+                password: Joi.string().min(8).max(30).required(),
             });
             const {
                 body: { email, password },
@@ -78,47 +136,6 @@ export default class AuthController extends Controller {
         }
         const authorizationToken = AuthController.generateAuthorizationToken(email);
         return { status: HttpStatusCode.OK, body: authorizationToken };
-    }
-
-    public async createUser() {
-        try {
-            const bodySchema = Joi.object({
-                email: Joi.string().trim().email().required(),
-                password: Joi.string().min(8).max(30).required().disallow(" "),
-                otp: Joi.number().min(100000).max(999999).required(),
-            }).custom((value) => {
-                if (!AuthController.isStrongPassword(value.password)) {
-                    throw new Error("Password isn't strong.");
-                }
-                return value;
-            });
-            const {
-                body: { email, password, otp },
-            } = await this.validateRequest({ bodySchema });
-            const { status, body } = await AuthController.createUser(email, password, otp);
-            this.sendResponse(status, body);
-        } catch (error: any) {
-            this.handleError(error);
-        }
-    }
-
-    private static async createUser(email: string, password: string, otp: number): Promise<APIResponse> {
-        const db = await MongoDBService.getDB();
-        const userDoc = await db.collection(collections.USERS).findOne({ email });
-        if (userDoc) {
-            throw new HttpError({ status: HttpStatusCode.CONFLICT });
-        }
-        const expiryTime = new Date(Date.now() - 5 * 60 * 1000); //Current Time - 5 Minutes
-        const { deletedCount } = await db
-            .collection<OneTimePassword>(collections.ONE_TIME_PASSWORDS)
-            .deleteOne({ email, otp, createdAt: { $gte: expiryTime } });
-        if (deletedCount === 0) {
-            throw new HttpError({ status: HttpStatusCode.UNAUTHORIZED, message: "Invalid OTP" });
-        }
-        const hashedPassword = AuthController.generateHashedPassword(password);
-        const authorizationToken = AuthController.generateAuthorizationToken(email);
-        await db.collection(collections.USERS).insertOne({ email, password: hashedPassword, createdAt: new Date() });
-        return { status: HttpStatusCode.CREATED, body: authorizationToken };
     }
 
     private static isStrongPassword(password: string): boolean {
