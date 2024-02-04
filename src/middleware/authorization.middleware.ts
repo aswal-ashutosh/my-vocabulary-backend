@@ -9,7 +9,7 @@ export const authorize = async (req: Request, res: Response, next: NextFunction)
         const authHeader = req.headers["authorization"];
         const token = authHeader && authHeader.startsWith("Bearer ") && authHeader.substring(7);
         if (!token) {
-            return res.status(HttpStatusCode.UNAUTHORIZED).json({ error: "Authorization token missing/malformed." });
+            throw new jwt.JsonWebTokenError("Authorization token missing/malformed.");
         }
         const { email } = jwt.verify(token, config.JWT_ACCESS_TOKEN_KEY) as JWTPayload;
         req.userInfo = { email };
