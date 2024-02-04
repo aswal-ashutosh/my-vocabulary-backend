@@ -171,7 +171,7 @@ export default class AuthController extends Controller {
     private static refreshAccessToken(refreshToken: string): APIResponse {
         try {
             const { email } = jwt.verify(refreshToken, config.JWT_REFRESH_TOKEN_KEY) as JWTPayload;
-            const accessToken = jwt.sign({ email }, config.JWT_ACCESS_TOKEN_KEY, { expiresIn: "1d" });
+            const accessToken = jwt.sign({ email }, config.JWT_ACCESS_TOKEN_KEY, { expiresIn: 15 * 60 });
             return { status: HttpStatusCode.OK, body: { accessToken } };
         } catch (error: any) {
             if (error instanceof jwt.JsonWebTokenError) {
@@ -210,7 +210,7 @@ export default class AuthController extends Controller {
     }
 
     private static generateAuthorizationToken(email: string): AuthorizationToken {
-        const accessToken = jwt.sign({ email }, config.JWT_ACCESS_TOKEN_KEY, { expiresIn: "1d" });
+        const accessToken = jwt.sign({ email }, config.JWT_ACCESS_TOKEN_KEY, { expiresIn: 15 * 60 });
         const refreshToken = jwt.sign({ email }, config.JWT_REFRESH_TOKEN_KEY, { expiresIn: "7d" });
         return { accessToken, refreshToken };
     }
