@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Controller from "./Controller";
 import Joi from "joi";
-import { APIResponse, AuthorizationToken, HashedPassword } from "../types";
+import { APIResponse, AuthorizationToken, HashedPassword, JWTPayload } from "../types";
 import HttpStatusCode from "../constants/http-status-codes";
 import MongoDBService from "../services/MongoDBService";
 import collections from "../constants/mongodb-collections";
@@ -101,7 +101,7 @@ export default class AuthController extends Controller {
             .collection<OneTimePassword>(collections.ONE_TIME_PASSWORDS)
             .deleteOne({ email, otp, createdAt: { $gte: expiryTime } });
         if (deletedCount === 0) {
-            throw new HttpError({ status: HttpStatusCode.UNAUTHORIZED, message: "Invalid OTP", path: ["otp"] });
+            throw new HttpError({ status: HttpStatusCode.FORBIDDEN, message: "Invalid OTP", path: ["otp"] });
         }
         const hashedPassword = AuthController.generateHashedPassword(password);
         const authorizationToken = AuthController.generateAuthorizationToken(email);
@@ -147,10 +147,38 @@ export default class AuthController extends Controller {
             throw new HttpError({ status: HttpStatusCode.NOT_FOUND, message: "There is no such user.", path: ["email"] });
         }
         if (!AuthController.verifyPassword(password, user.password)) {
-            throw new HttpError({ status: HttpStatusCode.UNAUTHORIZED, message: "Invalid password.", path: ["password"] });
+            throw new HttpError({ status: HttpStatusCode.FORBIDDEN, message: "Invalid password.", path: ["password"] });
         }
         const authorizationToken = AuthController.generateAuthorizationToken(email);
         return { status: HttpStatusCode.OK, body: authorizationToken };
+    }
+
+    public async refreshAccessToken() {
+        try {
+            const bodySchema = Joi.object({
+                refreshToken: Joi.string().required(),
+            });
+            const {
+                body: { refreshToken },
+            } = await this.validateRequest({ bodySchema });
+            const { status, body } = AuthController.refreshAccessToken(refreshToken);
+            this.sendResponse(status, body);
+        } catch (error: any) {
+            this.handleError(error);
+        }
+    }
+
+    private static refreshAccessToken(refreshToken: string): APIResponse {
+        try {
+            const { email } = jwt.verify(refreshToken, config.JWT_REFRESH_TOKEN_KEY) as JWTPayload;
+            const accessToken = jwt.sign({ email }, config.JWT_ACCESS_TOKEN_KEY, { expiresIn: "1d" });
+            return { status: HttpStatusCode.OK, body: { accessToken } };
+        } catch (error: any) {
+            if (error instanceof jwt.JsonWebTokenError) {
+                throw new HttpError({ status: HttpStatusCode.UNAUTHORIZED });
+            }
+            throw error;
+        }
     }
 
     private static isStrongPassword(password: string): boolean {
