@@ -6,9 +6,11 @@ import helmet from "helmet";
 import cors from "cors";
 import compression from "compression";
 import config from "./constants/config";
+import rateLimit from "express-rate-limit";
 
 const server = express();
 
+server.use(rateLimit({ windowMs: 60 * 1000, limit: 300 }));
 server.use(helmet());
 server.use(cors());
 server.use(compression());
