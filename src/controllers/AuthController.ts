@@ -112,8 +112,23 @@ export default class AuthController extends Controller {
     public async signIn() {
         try {
             const bodySchema = Joi.object({
-                email: Joi.string().trim().email().required(),
-                password: Joi.string().min(8).max(30).required(),
+                email: Joi.string().trim().email().required().messages({
+                    "string.base": "Email must be a string.",
+                    "string.email": "Invalid email address.",
+                    "any.required": "Email is required.",
+                }),
+                password: Joi.string()
+                    .min(8)
+                    .max(30)
+                    .regex(/^[^\s]+$/)
+                    .required()
+                    .messages({
+                        "string.base": "Password must be a string.",
+                        "string.min": "Invalid password.",
+                        "string.max": "Invalid password.",
+                        "string.pattern.base": "Invalid password.",
+                        "any.required": "Password is required.",
+                    }),
             });
             const {
                 body: { email, password },
@@ -129,10 +144,10 @@ export default class AuthController extends Controller {
         const db = await MongoDBService.getDB();
         const user = await db.collection<User>(collections.USERS).findOne({ email });
         if (!user) {
-            throw new HttpError({ status: HttpStatusCode.NOT_FOUND, message: "The requested user doesn't exist" });
+            throw new HttpError({ status: HttpStatusCode.NOT_FOUND, message: "There is no such user.", path: ["email"] });
         }
         if (!AuthController.verifyPassword(password, user.password)) {
-            throw new HttpError({ status: HttpStatusCode.UNAUTHORIZED, message: "Invalid credentials." });
+            throw new HttpError({ status: HttpStatusCode.UNAUTHORIZED, message: "Invalid password.", path: ["password"] });
         }
         const authorizationToken = AuthController.generateAuthorizationToken(email);
         return { status: HttpStatusCode.OK, body: authorizationToken };
