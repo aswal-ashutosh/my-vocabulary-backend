@@ -18,11 +18,11 @@ export default class VocabularyController extends Controller {
         try {
             const notEmptyStringSchema = Joi.string().not().empty();
             const bodySchema = Joi.object({
-                word: notEmptyStringSchema.required(),
+                term: notEmptyStringSchema.required(),
                 definitions: Joi.array().items(notEmptyStringSchema).min(1).required(),
-                sentences: Joi.array().items(notEmptyStringSchema).max(10).required(),
-                similarWords: Joi.array().items(notEmptyStringSchema).max(10).required(),
-                oppositeWords: Joi.array().items(notEmptyStringSchema).max(10).required(),
+                usages: Joi.array().items(notEmptyStringSchema).max(10).required(),
+                synonyms: Joi.array().items(notEmptyStringSchema).max(10).required(),
+                antonyms: Joi.array().items(notEmptyStringSchema).max(10).required(),
             });
             const { body: word } = await this.validateRequest({ bodySchema });
             const email: string = this.userInfo()!.email;
@@ -35,9 +35,8 @@ export default class VocabularyController extends Controller {
 
     private static async addWord(word: Word, email: string): Promise<APIResponse> {
         const db = await MongoDBService.getDB();
-        const { insertedId } = await db
-            .collection<Word>(collections.WORDS)
-            .insertOne({ ...word, createdBy: email, createdAt: new Date() });
+        word.createdAt = new Date();
+        const { insertedId } = await db.collection<Word>(collections.WORDS).insertOne({ ...word, createdBy: email });
         word._id = insertedId;
         return { status: HttpStatusCode.CREATED, body: word };
     }
@@ -46,11 +45,11 @@ export default class VocabularyController extends Controller {
         try {
             const notEmptyStringSchema = Joi.string().not().empty();
             const bodySchema = Joi.object({
-                word: notEmptyStringSchema,
+                term: notEmptyStringSchema,
                 definitions: Joi.array().items(notEmptyStringSchema).min(1),
-                sentences: Joi.array().items(notEmptyStringSchema).max(10),
-                similarWords: Joi.array().items(notEmptyStringSchema).max(10),
-                oppositeWords: Joi.array().items(notEmptyStringSchema).max(10),
+                usages: Joi.array().items(notEmptyStringSchema).max(10),
+                synonyms: Joi.array().items(notEmptyStringSchema).max(10),
+                antonyms: Joi.array().items(notEmptyStringSchema).max(10),
             }).min(1);
             const paramsSchema = Joi.object({ _id: Joi.string().hex().length(24) });
             const {
@@ -102,7 +101,7 @@ export default class VocabularyController extends Controller {
         const words: Word[] = await db
             .collection<Word>(collections.WORDS)
             .find({ createdBy })
-            .sort({ word: 1 })
+            .sort({ createdAt: -1 })
             .skip((page - 1) * pageSize)
             .limit(pageSize)
             .project<Word>({ createdBy: 0 })

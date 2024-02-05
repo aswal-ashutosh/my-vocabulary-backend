@@ -17,11 +17,11 @@ export interface User {
 
 export interface Word {
     _id: ObjectId;
-    word: string;
+    term: string;
     definitions: string[];
-    sentences: string[];
-    similarWords: string[];
-    oppositeWords: string[];
+    usages: string[];
+    synonyms: string[];
+    antonyms: string[];
     createdBy: string;
     createdAt: Date;
 }
